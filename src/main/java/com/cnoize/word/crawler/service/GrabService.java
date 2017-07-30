@@ -7,7 +7,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.*;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.PostConstruct;
 
@@ -176,37 +175,29 @@ public class GrabService {
 
         final String cn = StringUtils.trimWhitespace(shanbeiWord.getCnDefinition().get("defn"));
         if (!StringUtils.isEmpty(cn)) {
-            final Map<String, List<String>> cnMap = Splitter.on("\n")
+            final List<String> list = Splitter.on("\n")
                     .omitEmptyStrings()
                     .trimResults()
-                    .splitToList(cn)
-                    .stream()
-                    .collect(Collectors.toMap(
-                            value -> {
-                                final List<String> list = Splitter.on(".")
-                                        .omitEmptyStrings()
-                                        .trimResults()
-                                        .splitToList(value);
+                    .splitToList(cn);
 
-                                final int size = list.size();
-                                if (size <= 1) {
-                                    return "";
-                                }
+            final Map<String, List<String>> cnMap = new HashMap<>();
 
-                                return Joiner.on(".").join(list.subList(0, size - 1));
-                            },
-                            value -> {
-                                final List<String> list = Splitter.on(".")
-                                        .omitEmptyStrings()
-                                        .trimResults()
-                                        .splitToList(value);
-                                final int size = list.size();
-                                if (size <= 1) {
-                                    return ImmutableList.of(value);
-                                }
-                                return ImmutableList.of(list.get(size - 1));
-                            }
-                    ));
+            for (final String defns : list) {
+                final List<String> defn = Splitter.on(".")
+                        .omitEmptyStrings()
+                        .trimResults()
+                        .splitToList(defns);
+                final int size = defn.size();
+                final String key = (size <= 1) ? "" : Joiner.on(".").join(defn.subList(0, size - 1));
+                final String value = (size <= 1) ? defns : defn.get(size - 1);
+                if (cnMap.containsKey(key)) {
+                    final List<String> values = new ArrayList<>(cnMap.get(key));
+                    values.add(value);
+                    cnMap.put(key, values);
+                } else {
+                    cnMap.put(key, ImmutableList.of(value));
+                }
+            }
             result.put("cn", cnMap);
         }
 
